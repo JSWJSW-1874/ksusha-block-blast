@@ -971,6 +971,7 @@ function updateLevelBar() {
     level = computedLevel;
     document.getElementById('level-val').textContent = level;
     showPopup('LEVEL ' + level + '!', null, 'perfect');
+    spawnConfetti(50); sound('levelup'); haptic('levelup');
   }
 }
 
@@ -1025,6 +1026,7 @@ function dealPieces() {
     if (!pieces[i]) pieces[i] = getRandomPiece();
   }
   renderPieces();
+  animatePieceSlots();
 }
 
 function renderPieces() {
@@ -1222,6 +1224,7 @@ function placePiece(shape, color, startR, startC) {
     for (let c = 0; c < shape[0].length; c++)
       if (shape[r][c]) grid[startR + r][startC + c] = color;
   renderBoard();
+  sound('place'); haptic('place');
 }
 
 function checkAndClear() {
@@ -1232,16 +1235,29 @@ function checkAndClear() {
     if (grid.every(row => row[c] !== null)) colsToClear.push(c);
   if (!rowsToClear.length && !colsToClear.length) return false;
 
+  // gather cells (with their colours) for the particle burst, then flash them
+  const burstCells = [];
   rowsToClear.forEach(r => {
-    for (let c = 0; c < GRID; c++) document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`)?.classList.add('clear-flash');
+    for (let c = 0; c < GRID; c++) {
+      const el = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+      if (el) { el.classList.add('clear-flash'); burstCells.push(el); }
+    }
   });
   colsToClear.forEach(c => {
-    for (let r = 0; r < GRID; r++) document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`)?.classList.add('clear-flash');
+    for (let r = 0; r < GRID; r++) {
+      const el = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`);
+      if (el && !burstCells.includes(el)) { el.classList.add('clear-flash'); burstCells.push(el); }
+    }
   });
+  spawnParticles(burstCells);
 
   combo++;
   const lines = rowsToClear.length + colsToClear.length;
   const doubleOrMore = lines >= 2;
+
+  // sound + haptic + shake for the clear
+  if (combo >= 3) { screenShake(); sound('combo'); haptic('combo'); }
+  else            { sound('clear'); haptic('clear'); }
 
   // base: 100 per line, doubled if 2+ at once
   let pts = lines * 100 * (doubleOrMore ? 2 : 1);
@@ -1271,6 +1287,7 @@ function checkAndClear() {
     if (isEmpty) {
       addScore(pts + 2000 * level, board);
       showPopup('PERFECT CLEAR!', board, 'perfect');
+      spawnConfetti(80); sound('perfect'); haptic('perfect');
     } else {
       addScore(pts, board);
     }
@@ -1287,6 +1304,7 @@ function checkGameOver() {
     for (let r = 0; r <= GRID - p.shape.length; r++)
       for (let c = 0; c <= GRID - p.shape[0].length; c++)
         if (canPlace(p.shape, r, c)) return;
+  sound('gameover'); haptic('gameover');
   setTimeout(() => {
     document.getElementById('final-score').textContent = score;
     document.getElementById('game-over').classList.add('show');
@@ -1412,76 +1430,6 @@ function animatePieceSlots() {
     void slot.offsetWidth;
     setTimeout(() => slot.classList.add('pop-in'), i * 80);
   }
-}
-
-// ===== HOOK INTO GAME EVENTS =====
-// Wrap placePiece to trigger sound+haptic
-const _origPlacePiece = placePiece;
-function placePiece(shape, color, startR, startC) {
-  _origPlacePiece(shape, color, startR, startC);
-  sound('place'); haptic('place');
-}
-
-// Wrap dealPieces to animate slots
-const _origDealPieces = dealPieces;
-function dealPieces() {
-  _origDealPieces();
-  animatePieceSlots();
-}
-
-// Wrap checkAndClear to add particles + shake + sound
-const _origCheckAndClear = checkAndClear;
-function checkAndClear() {
-  // collect cells BEFORE clearing so we can read their colours
-  const rowsToClear = [], colsToClear = [];
-  for (let r = 0; r < GRID; r++)
-    if (grid[r].every(c => c !== null)) rowsToClear.push(r);
-  for (let c = 0; c < GRID; c++)
-    if (grid.every(row => row[c] !== null)) colsToClear.push(c);
-
-  const result = _origCheckAndClear();
-
-  if (result) {
-    const lines = rowsToClear.length + colsToClear.length;
-    // gather DOM cells for particles
-    const cells = [];
-    rowsToClear.forEach(r => { for (let c = 0; c < GRID; c++) { const el = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`); if (el) cells.push(el); }});
-    colsToClear.forEach(c => { for (let r = 0; r < GRID; r++) { const el = document.querySelector(`.cell[data-r="${r}"][data-c="${c}"]`); if (el && !cells.includes(el)) cells.push(el); }});
-    spawnParticles(cells);
-
-    if (combo >= 3) { screenShake(); sound('combo'); haptic('combo'); }
-    else            { sound('clear'); haptic('clear'); }
-
-    // check perfect clear / level up after short delay
-    setTimeout(() => {
-      const isEmpty = grid.every(row => row.every(c => c === null));
-      if (isEmpty) { spawnConfetti(80); sound('perfect'); haptic('perfect'); }
-    }, 320);
-  }
-  return result;
-}
-
-// Wrap level-up popup to add confetti + sound
-const _origUpdateLevelBar = updateLevelBar;
-function updateLevelBar() {
-  const prevLevel = level;
-  _origUpdateLevelBar();
-  if (level > prevLevel) { spawnConfetti(50); sound('levelup'); haptic('levelup'); }
-}
-
-// Game over sound + haptic
-const _origCheckGameOver = checkGameOver;
-function checkGameOver() {
-  const available = pieces.filter(p => p !== null);
-  for (const p of available)
-    for (let r = 0; r <= GRID - p.shape.length; r++)
-      for (let c = 0; c <= GRID - p.shape[0].length; c++)
-        if (canPlace(p.shape, r, c)) return;
-  sound('gameover'); haptic('gameover');
-  setTimeout(() => {
-    document.getElementById('final-score').textContent = score;
-    document.getElementById('game-over').classList.add('show');
-  }, 400);
 }
 
 // ===== INIT =====
