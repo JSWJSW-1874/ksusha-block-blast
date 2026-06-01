@@ -212,6 +212,8 @@
   }
   @keyframes floatPts { to { opacity:0; transform: translate(-50%,-220%) scale(1.2);} }
 
+  .home-btn { text-decoration: none; }
+
   @media (max-width: 520px) {
     .overlay h1 { font-size: 2rem; }
     .shell { font-size: 38px; }
@@ -245,6 +247,7 @@
   <p>Welcome to the Maldives! Collect the seashells in the white sand before time runs out to reach the next island!</p>
   <button class="btn" id="start-btn">▶ START</button>
   <button class="btn blue" id="how-btn">📖 HOW TO PLAY</button>
+  <a class="btn blue home-btn" href="index.html">🏠 HOME</a>
   <div id="best-line">🏆 Best Level: <span id="best-val">1</span></div>
 </div>
 
@@ -276,6 +279,7 @@
   <p id="lose-text">You reached Level 1. The tide came in! Try again?</p>
   <button class="btn" id="retry-btn">↺ Try Again</button>
   <button class="btn blue" id="menu-btn">Main Menu</button>
+  <a class="btn blue home-btn" href="index.html">🏠 Home</a>
 </div>
 
 <script>
