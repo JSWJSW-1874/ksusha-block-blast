@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Ksusha's Flag Quiz</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { min-height: 100%; }
+  body {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    color: #fff;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 20px 16px 40px;
+    position: relative;
+    overflow-x: hidden;
+    background: #0e1b3a;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background: linear-gradient(135deg,#1e3c72,#2a5298,#6dd5ed,#2a5298,#1e3c72);
+    background-size: 400% 400%;
+    animation: bg 10s ease infinite;
+    opacity: 0.9;
+  }
+  @keyframes bg { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+
+  .screen { position: relative; z-index: 2; width: 100%; max-width: 460px; display: none; flex-direction: column; align-items: center; gap: 18px; }
+  .screen.active { display: flex; }
+
+  h1 {
+    font-size: 2.3rem; text-align: center; line-height: 1.1; letter-spacing: 1px;
+    text-shadow: 0 3px 0 #00000044, 0 0 18px #6dd5ed99; margin-top: 30px;
+  }
+  h1 .sub { display:block; font-size: 1rem; letter-spacing: 4px; opacity: 0.9; margin-bottom: 6px; }
+  .lead { text-align: center; font-size: 1.05rem; line-height: 1.5; color: #eaf6ff; max-width: 380px; }
+
+  .btn {
+    width: 100%;
+    padding: 16px 20px;
+    font-size: 1.15rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    color: #fff;
+    text-align: center;
+    text-decoration: none;
+    box-shadow: 0 5px 0 #00000044, 0 8px 18px #0005;
+    transition: transform 0.08s, box-shadow 0.08s, filter 0.08s;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #00000044, 0 3px 10px #0005; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.easy   { background: linear-gradient(180deg,#56ab2f,#a8e063); color:#103300; }
+  .btn.medium { background: linear-gradient(180deg,#f7971e,#ffd200); color:#3a2400; }
+  .btn.hard   { background: linear-gradient(180deg,#cb2d3e,#ef473a); }
+  .btn.blue   { background: linear-gradient(180deg,#2193b0,#6dd5ed); color:#06303a; }
+  .btn.gold   { background: linear-gradient(180deg,#ffd200,#f7971e); color:#3a2400; }
+
+  .levels { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+  .lvl-note { font-size: 0.8rem; opacity: 0.85; font-weight: normal; }
+
+  /* ===== QUIZ ===== */
+  #quiz-top { width: 100%; display: flex; justify-content: space-between; align-items: center; font-weight: bold; text-shadow: 0 2px 4px #0007; }
+  .pill { background: #00000033; border: 2px solid #ffffff55; border-radius: 12px; padding: 6px 14px; }
+
+  #qbar-wrap { width: 100%; height: 12px; background: #00000033; border: 2px solid #ffffff55; border-radius: 8px; overflow: hidden; }
+  #qbar { height: 100%; width: 0%; background: linear-gradient(90deg,#6dd5ed,#ffd200); transition: width 0.3s; }
+
+  .flag-card {
+    width: 100%;
+    background: #ffffff18;
+    border: 3px solid #ffffff44;
+    border-radius: 20px;
+    padding: 22px 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 8px 24px #0005;
+  }
+  .flag-img {
+    width: 200px; max-width: 70vw;
+    aspect-ratio: 3 / 2;
+    object-fit: cover;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px #0007;
+    background: #ffffff22;
+  }
+  .qtext { font-size: 1.35rem; font-weight: bold; text-align: center; text-shadow: 0 2px 4px #0007; }
+
+  .options { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+  .opt {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.15rem;
+    font-weight: bold;
+    border: 3px solid #ffffff55;
+    border-radius: 14px;
+    background: #ffffff1a;
+    color: #fff;
+    cursor: pointer;
+    text-shadow: 0 1px 3px #0007;
+    transition: transform 0.08s, background 0.15s, border-color 0.15s;
+  }
+  .opt:active { transform: scale(0.98); }
+  .opt.correct { background: #2ecc71; border-color: #fff; animation: pop 0.3s ease; }
+  .opt.wrong   { background: #e74c3c; border-color: #fff; }
+  .opt.disabled { pointer-events: none; opacity: 0.95; }
+  @keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.06)} 100%{transform:scale(1)} }
+
+  #feedback { font-size: 1.2rem; font-weight: bold; min-height: 1.4em; text-shadow: 0 2px 4px #0008; }
+  #feedback.good { color: #b6ff9e; }
+  #feedback.bad  { color: #ffb3a7; }
+
+  /* ===== RESULT ===== */
+  .big { font-size: 3.6rem; }
+  .stars { font-size: 2rem; letter-spacing: 6px; }
+  #score-line { font-size: 1.5rem; font-weight: bold; }
+
+  .footer-link { position: relative; z-index: 2; margin-top: auto; }
+</style>
+</head>
+<body>
+
+<!-- START -->
+<div class="screen active" id="start-screen">
+  <h1><span class="sub">KSUSHA'S</span>🌍 FLAG QUIZ</h1>
+  <p class="lead">Look at the flag and pick the right capital city! Choose how hard you want it:</p>
+  <div class="levels">
+    <button class="btn easy"   data-level="easy">🟢 EASY <span class="lvl-note">(our neighbours)</span></button>
+    <button class="btn medium" data-level="medium">🟡 MEDIUM <span class="lvl-note">(all of Europe)</span></button>
+    <button class="btn hard"   data-level="hard">🔴 HARD <span class="lvl-note">(the whole world)</span></button>
+  </div>
+  <a class="btn blue" href="index.html">🏠 HOME</a>
+</div>
+
+<!-- QUIZ -->
+<div class="screen" id="quiz-screen">
+  <div id="quiz-top">
+    <span class="pill" id="q-count">1 / 6</span>
+    <span class="pill" id="q-score">⭐ 0</span>
+  </div>
+  <div id="qbar-wrap"><div id="qbar"></div></div>
+  <div class="flag-card">
+    <img class="flag-img" id="flag-img" alt="flag">
+    <div class="qtext" id="q-text">What is the capital?</div>
+  </div>
+  <div class="options" id="options"></div>
+  <div id="feedback"></div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="result-screen">
+  <div class="big" id="result-emoji">🎉</div>
+  <div class="stars" id="result-stars">⭐⭐⭐</div>
+  <h1 id="result-title" style="margin-top:0">Well done!</h1>
+  <div id="score-line">You got 0 / 6</div>
+  <p class="lead" id="result-msg"></p>
+  <button class="btn gold" id="again-btn">↺ Play Again</button>
+  <button class="btn blue" id="change-btn">Choose Level</button>
+  <a class="btn blue" href="index.html">🏠 Home</a>
+</div>
+
+<script>
+// ===== DATA ===== (capitals in very simple English, flags via flagcdn)
+const COUNTRIES = {
+  easy: [   // Belarus and her neighbours — most familiar
+    { c:'Belarus',   cap:'Minsk',  iso:'by' },
+    { c:'Russia',    cap:'Moscow', iso:'ru' },
+    { c:'Poland',    cap:'Warsaw', iso:'pl' },
+    { c:'Ukraine',   cap:'Kyiv',   iso:'ua' },
+    { c:'Lithuania', cap:'Vilnius',iso:'lt' },
+    { c:'Latvia',    cap:'Riga',   iso:'lv' },
+  ],
+  medium: [ // wider Europe
+    { c:'France',         cap:'Paris',     iso:'fr' },
+    { c:'Germany',        cap:'Berlin',    iso:'de' },
+    { c:'Spain',          cap:'Madrid',    iso:'es' },
+    { c:'Italy',          cap:'Rome',      iso:'it' },
+    { c:'United Kingdom', cap:'London',    iso:'gb' },
+    { c:'Greece',         cap:'Athens',    iso:'gr' },
+    { c:'Portugal',       cap:'Lisbon',    iso:'pt' },
+    { c:'Sweden',         cap:'Stockholm', iso:'se' },
+  ],
+  hard: [   // the whole world
+    { c:'United States', cap:'Washington', iso:'us' },
+    { c:'China',         cap:'Beijing',    iso:'cn' },
+    { c:'Japan',         cap:'Tokyo',      iso:'jp' },
+    { c:'Egypt',         cap:'Cairo',      iso:'eg' },
+    { c:'Brazil',        cap:'Brasilia',   iso:'br' },
+    { c:'Australia',     cap:'Canberra',   iso:'au' },
+    { c:'Canada',        cap:'Ottawa',     iso:'ca' },
+    { c:'India',         cap:'New Delhi',  iso:'in' },
+  ],
+};
+const QUESTIONS_PER_ROUND = 6;
+
+// ===== STATE =====
+let pool = [];
+let order = [];
+let qIndex = 0;
+let score = 0;
+let answered = false;
+let currentLevel = 'easy';
+
+// ===== AUDIO =====
+let actx=null;
+function audio(){ if(!actx) actx=new (window.AudioContext||window.webkitAudioContext)(); return actx; }
+function tone(f,t,d,g=0.18,delay=0){ try{const c=audio(),o=c.createOscillator(),gn=c.createGain();o.connect(gn);gn.connect(c.destination);o.type=t;o.frequency.setValueAtTime(f,c.currentTime+delay);g&&gn.gain.setValueAtTime(g,c.currentTime+delay);gn.gain.exponentialRampToValueAtTime(0.001,c.currentTime+delay+d);o.start(c.currentTime+delay);o.stop(c.currentTime+delay+d);}catch(e){} }
+function sfxRight(){ [523,659,784].forEach((f,i)=>tone(f,'sine',0.15,0.18,i*0.07)); }
+function sfxWrong(){ tone(200,'sawtooth',0.25,0.18); tone(150,'sawtooth',0.25,0.16,0.05); }
+function sfxWin(){ [523,659,784,1047,1319].forEach((f,i)=>tone(f,'triangle',0.18,0.2,i*0.09)); }
+function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
+
+// ===== HELPERS =====
+function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+
+// ===== GAME =====
+function startQuiz(level){
+  audio();
+  currentLevel = level;
+  pool = COUNTRIES[level];
+  order = shuffle(pool).slice(0, Math.min(QUESTIONS_PER_ROUND, pool.length));
+  qIndex = 0;
+  score = 0;
+  showScreen('quiz-screen');
+  showQuestion();
+}
+
+function showQuestion(){
+  answered = false;
+  const q = order[qIndex];
+  document.getElementById('q-count').textContent = (qIndex+1) + ' / ' + order.length;
+  document.getElementById('q-score').textContent = '⭐ ' + score;
+  document.getElementById('qbar').style.width = (qIndex/order.length*100) + '%';
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = '';
+
+  const img = document.getElementById('flag-img');
+  img.src = `https://flagcdn.com/w320/${q.iso}.png`;
+  img.alt = q.c + ' flag';
+  document.getElementById('q-text').textContent = 'What is the capital of ' + q.c + '?';
+
+  // build 3 options: correct + 2 distractors from the same pool
+  const distractors = shuffle(pool.filter(x => x.cap !== q.cap)).slice(0,2).map(x=>x.cap);
+  const opts = shuffle([q.cap, ...distractors]);
+
+  const box = document.getElementById('options');
+  box.innerHTML = '';
+  opts.forEach(opt => {
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.textContent = opt;
+    b.addEventListener('click', () => choose(b, opt, q.cap));
+    box.appendChild(b);
+  });
+}
+
+function choose(btn, picked, correct){
+  if(answered) return;
+  answered = true;
+  const all = document.querySelectorAll('.opt');
+  all.forEach(b => b.classList.add('disabled'));
+
+  const fb = document.getElementById('feedback');
+  if(picked === correct){
+    btn.classList.add('correct');
+    score++;
+    document.getElementById('q-score').textContent = '⭐ ' + score;
+    fb.textContent = '✅ Correct! ' + correct;
+    fb.className = 'good';
+    sfxRight(); buzz(20);
+  } else {
+    btn.classList.add('wrong');
+    // highlight the correct one
+    all.forEach(b => { if(b.textContent === correct) b.classList.add('correct'); });
+    fb.textContent = '❌ It is ' + correct;
+    fb.className = 'bad';
+    sfxWrong(); buzz([50,30,50]);
+  }
+
+  setTimeout(() => {
+    qIndex++;
+    if(qIndex >= order.length) showResult();
+    else showQuestion();
+  }, 1300);
+}
+
+function showResult(){
+  showScreen('result-screen');
+  document.getElementById('qbar').style.width = '100%';
+  const total = order.length;
+  const pct = score / total;
+  let stars = 1;
+  if(pct >= 0.5) stars = 2;
+  if(pct >= 0.83) stars = 3;
+
+  document.getElementById('result-stars').textContent = '⭐'.repeat(stars) + '☆'.repeat(3-stars);
+  document.getElementById('score-line').textContent = `You got ${score} / ${total}`;
+
+  let emoji, title, msg;
+  if(pct === 1){ emoji='🏆'; title='Perfect!'; msg='Amazing! You are a capital city superstar! 🌟'; }
+  else if(pct >= 0.83){ emoji='🎉'; title='Brilliant!'; msg='So good! Almost all correct!'; }
+  else if(pct >= 0.5){ emoji='😀'; title='Well done!'; msg='Nice work! Try again to get even more.'; }
+  else { emoji='🙂'; title='Good try!'; msg='Keep playing and you will learn them all!'; }
+
+  document.getElementById('result-emoji').textContent = emoji;
+  document.getElementById('result-title').textContent = title;
+  document.getElementById('result-msg').textContent = msg;
+  sfxWin(); buzz([40,30,80]);
+}
+
+// ===== BUTTONS =====
+document.querySelectorAll('[data-level]').forEach(b => {
+  b.addEventListener('click', () => startQuiz(b.dataset.level));
+});
+document.getElementById('again-btn').addEventListener('click', () => startQuiz(currentLevel));
+document.getElementById('change-btn').addEventListener('click', () => showScreen('start-screen'));
+</script>
+</body>
+</html>
