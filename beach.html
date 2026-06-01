@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Ksusha's Maldives Shell Hunt</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: 'Trebuchet MS', Arial, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    color: #fff;
+  }
+
+  /* ===== SCENE ===== */
+  #scene {
+    position: fixed;
+    inset: 0;
+    background:
+      linear-gradient(180deg,
+        #7ec8f0 0%,      /* sky */
+        #aee4fb 22%,
+        #4bb6e0 38%,     /* sea horizon */
+        #1d92c9 50%,     /* deep sea */
+        #3fb8d6 60%,
+        #84e0e8 66%,     /* shallow water */
+        #f6e9c8 72%,     /* wet sand */
+        #fbf3da 78%,
+        #fdf7e6 100%);   /* dry white sand */
+  }
+  /* sun */
+  #sun {
+    position: fixed;
+    top: 6%;
+    right: 12%;
+    width: 70px; height: 70px;
+    background: radial-gradient(circle, #fff7c2 0%, #ffe680 60%, #ffd54a 100%);
+    border-radius: 50%;
+    box-shadow: 0 0 40px 12px #ffe68088;
+    animation: sunGlow 4s ease-in-out infinite;
+  }
+  @keyframes sunGlow { 0%,100%{ box-shadow:0 0 40px 12px #ffe68088;} 50%{ box-shadow:0 0 60px 20px #ffe680bb;} }
+
+  /* gentle wave shimmer */
+  #waves {
+    position: fixed;
+    top: 64%; left: 0; right: 0; height: 10%;
+    background: repeating-linear-gradient(90deg, #ffffff55 0 14px, transparent 14px 40px);
+    opacity: 0.5;
+    animation: waveMove 3s linear infinite;
+  }
+  @keyframes waveMove { from{ background-position:0 0;} to{ background-position:40px 0;} }
+
+  /* palm tree (CSS) */
+  .palm { position: fixed; bottom: 0; font-size: 90px; line-height: 1; pointer-events:none; filter: drop-shadow(0 4px 6px #0003); }
+  #palm-left  { left: -6px; transform: scaleX(-1); }
+  #palm-right { right: 0; }
+
+  /* ===== PLAY FIELD (sand) ===== */
+  #field {
+    position: fixed;
+    left: 0; right: 0;
+    top: 70%; bottom: 0;
+    z-index: 5;
+  }
+
+  /* ===== SHELLS ===== */
+  .shell {
+    position: absolute;
+    font-size: 42px;
+    line-height: 1;
+    cursor: pointer;
+    transform: translate(-50%, -50%) scale(0);
+    animation: shellPop 0.25s ease forwards;
+    filter: drop-shadow(0 3px 4px #00000033);
+    z-index: 6;
+    will-change: transform;
+  }
+  @keyframes shellPop {
+    0% { transform: translate(-50%,-50%) scale(0) rotate(-20deg); }
+    70%{ transform: translate(-50%,-50%) scale(1.2) rotate(8deg); }
+    100%{ transform: translate(-50%,-50%) scale(1) rotate(0deg); }
+  }
+  .shell.leaving { animation: shellLeave 0.25s ease forwards; }
+  @keyframes shellLeave {
+    to { transform: translate(-50%,-50%) scale(0) rotate(30deg); opacity: 0; }
+  }
+  .shell.bonus { animation: shellPop 0.25s ease forwards, bonusBob 1s ease-in-out infinite 0.25s; }
+  @keyframes bonusBob { 0%,100%{ filter: drop-shadow(0 0 6px gold);} 50%{ filter: drop-shadow(0 0 16px gold);} }
+
+  /* sparkle on collect */
+  .sparkle {
+    position: absolute;
+    font-size: 28px;
+    pointer-events: none;
+    z-index: 7;
+    animation: sparkleUp 0.6s ease-out forwards;
+    transform: translate(-50%,-50%);
+  }
+  @keyframes sparkleUp {
+    0%{ opacity:1; transform: translate(-50%,-50%) scale(0.6);}
+    100%{ opacity:0; transform: translate(-50%,-160%) scale(1.4);}
+  }
+
+  /* ===== HUD ===== */
+  #hud {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 12px 16px;
+    z-index: 10;
+    font-weight: bold;
+    text-shadow: 0 2px 4px #0006;
+    pointer-events: none;
+  }
+  .hud-box {
+    background: #00000033;
+    border: 2px solid #ffffff66;
+    border-radius: 14px;
+    padding: 6px 14px;
+    backdrop-filter: blur(2px);
+    text-align: center;
+    min-width: 78px;
+  }
+  .hud-label { font-size: 0.7rem; opacity: 0.85; letter-spacing: 1px; }
+  .hud-val { font-size: 1.4rem; }
+  #time-box.low .hud-val { color: #ff5555; animation: blink 0.5s steps(2) infinite; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+
+  /* progress bar */
+  #progress-wrap {
+    position: fixed;
+    top: 84px; left: 50%; transform: translateX(-50%);
+    width: 84vw; max-width: 420px;
+    height: 14px;
+    background: #00000033;
+    border: 2px solid #ffffff66;
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 10;
+  }
+  #progress { height: 100%; width: 0%; background: linear-gradient(90deg,#ffd54a,#ff9f40); transition: width 0.25s ease; }
+
+  /* ===== OVERLAYS ===== */
+  .overlay {
+    position: fixed; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    z-index: 50;
+    background: linear-gradient(180deg, #0a3a55cc, #0a3a55ee);
+    backdrop-filter: blur(3px);
+    text-align: center;
+    padding: 24px;
+  }
+  .overlay.show { display: flex; }
+  .overlay h1 {
+    font-size: 2.4rem;
+    color: #fff;
+    text-shadow: 0 3px 0 #1d92c9, 0 0 18px #84e0e8;
+    line-height: 1.1;
+  }
+  .overlay h2 { font-size: 1.8rem; color: #ffe680; text-shadow: 0 2px 6px #0008; }
+  .overlay p { font-size: 1.05rem; max-width: 360px; line-height: 1.5; color: #eaf6ff; }
+  .big-emoji { font-size: 4rem; animation: floaty 2s ease-in-out infinite; }
+  @keyframes floaty { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+
+  .btn {
+    padding: 14px 44px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 16px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    background: linear-gradient(180deg, #ffd54a, #ff9f40);
+    color: #5a3000;
+    box-shadow: 0 5px 0 #c66f00, 0 8px 16px #0005;
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #c66f00, 0 3px 8px #0005; }
+  .btn.blue { background: linear-gradient(180deg,#7ec8f0,#1d92c9); color:#fff; box-shadow:0 5px 0 #0a5a85,0 8px 16px #0005; }
+  .btn.blue:active { box-shadow:0 1px 0 #0a5a85,0 3px 8px #0005; }
+
+  #best-line { font-size: 0.95rem; color: #ffe680; }
+
+  /* rules list */
+  .rules { text-align: left; max-width: 360px; display:flex; flex-direction:column; gap:10px; }
+  .rules div { display:flex; gap:10px; align-items:center; font-size:0.98rem; }
+  .rules .ic { font-size:1.5rem; flex-shrink:0; width:34px; text-align:center; }
+
+  /* floating +points */
+  .float-pts {
+    position: absolute;
+    font-weight: bold;
+    font-size: 1.3rem;
+    color: #fff;
+    text-shadow: 0 2px 4px #0008;
+    pointer-events: none;
+    z-index: 8;
+    transform: translate(-50%,-50%);
+    animation: floatPts 0.7s ease-out forwards;
+  }
+  @keyframes floatPts { to { opacity:0; transform: translate(-50%,-220%) scale(1.2);} }
+
+  @media (max-width: 520px) {
+    .overlay h1 { font-size: 2rem; }
+    .shell { font-size: 38px; }
+    .palm { font-size: 70px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="scene"></div>
+<div id="sun"></div>
+<div id="waves"></div>
+<div id="palm-left"  class="palm">🌴</div>
+<div id="palm-right" class="palm">🌴</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-box"><div class="hud-label">LEVEL</div><div class="hud-val" id="level-val">1</div></div>
+  <div class="hud-box"><div class="hud-label">SHELLS</div><div class="hud-val"><span id="collected-val">0</span>/<span id="goal-val">5</span></div></div>
+  <div class="hud-box" id="time-box"><div class="hud-label">TIME</div><div class="hud-val" id="time-val">40</div></div>
+</div>
+<div id="progress-wrap"><div id="progress"></div></div>
+
+<!-- FIELD -->
+<div id="field"></div>
+
+<!-- START -->
+<div class="overlay show" id="start-screen">
+  <div class="big-emoji">🏝️🐚</div>
+  <h1>KSUSHA'S<br>SHELL HUNT</h1>
+  <p>Welcome to the Maldives! Collect the seashells in the white sand before time runs out to reach the next island!</p>
+  <button class="btn" id="start-btn">▶ START</button>
+  <button class="btn blue" id="how-btn">📖 HOW TO PLAY</button>
+  <div id="best-line">🏆 Best Level: <span id="best-val">1</span></div>
+</div>
+
+<!-- HOW TO PLAY -->
+<div class="overlay" id="how-screen">
+  <h2>📖 How To Play</h2>
+  <div class="rules">
+    <div><span class="ic">🐚</span><span>Tap the <b>shells</b> in the sand to collect them.</span></div>
+    <div><span class="ic">🎯</span><span>Fill the bar to the <b>goal</b> before time runs out.</span></div>
+    <div><span class="ic">⭐</span><span>Golden <b>pearl shells</b> are worth <b>3 shells</b> — grab them fast, they glow!</span></div>
+    <div><span class="ic">🦀</span><span>Don't tap the <b>crab</b>! It costs you a shell and time.</span></div>
+    <div><span class="ic">🏝️</span><span>Each island gets a little <b>harder</b> — more shells, less time!</span></div>
+  </div>
+  <button class="btn blue" id="how-back-btn">← Back</button>
+</div>
+
+<!-- LEVEL COMPLETE -->
+<div class="overlay" id="win-screen">
+  <div class="big-emoji">🏝️✨</div>
+  <h2 id="win-title">Island Cleared!</h2>
+  <p id="win-text">You collected all the shells! Ready for the next island?</p>
+  <button class="btn" id="next-btn">Next Island →</button>
+</div>
+
+<!-- GAME OVER -->
+<div class="overlay" id="lose-screen">
+  <div class="big-emoji">⏰🐚</div>
+  <h2>Time's Up!</h2>
+  <p id="lose-text">You reached Level 1. The tide came in! Try again?</p>
+  <button class="btn" id="retry-btn">↺ Try Again</button>
+  <button class="btn blue" id="menu-btn">Main Menu</button>
+</div>
+
+<script>
+// ===== STATE =====
+let level = 1;
+let collected = 0;
+let goal = 5;
+let timeLeft = 40;
+let bestLevel = 1;
+let running = false;
+let timerId = null;
+let spawnId = null;
+const field = document.getElementById('field');
+
+const SHELLS = ['🐚','🦪','🐚','🐚'];      // common shells
+const PEARL  = '🦪';                        // (visual handled separately)
+
+// ===== AUDIO (Web Audio, no files) =====
+let actx = null;
+function audio(){ if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)(); return actx; }
+function tone(freq, type, dur, gain=0.18, delay=0){
+  try{
+    const c=audio(), o=c.createOscillator(), g=c.createGain();
+    o.connect(g); g.connect(c.destination); o.type=type;
+    o.frequency.setValueAtTime(freq, c.currentTime+delay);
+    o.frequency.exponentialRampToValueAtTime(Math.max(1,freq*1.4), c.currentTime+delay+dur);
+    g.gain.setValueAtTime(gain, c.currentTime+delay);
+    g.gain.exponentialRampToValueAtTime(0.001, c.currentTime+delay+dur);
+    o.start(c.currentTime+delay); o.stop(c.currentTime+delay+dur);
+  }catch(e){}
+}
+function sfx(kind){
+  if(kind==='pick'){ tone(660,'sine',0.1,0.16); tone(880,'sine',0.1,0.12,0.05); }
+  if(kind==='pearl'){ [660,880,1100,1320].forEach((f,i)=>tone(f,'sine',0.12,0.18,i*0.05)); }
+  if(kind==='crab'){ tone(160,'sawtooth',0.25,0.2); tone(120,'sawtooth',0.25,0.18,0.05); }
+  if(kind==='win'){ [523,659,784,1047,1319].forEach((f,i)=>tone(f,'triangle',0.18,0.2,i*0.09)); }
+  if(kind==='lose'){ [392,330,262,196].forEach((f,i)=>tone(f,'sawtooth',0.25,0.18,i*0.12)); }
+}
+function buzz(ms){ if(navigator.vibrate) navigator.vibrate(ms); }
+
+// ===== DIFFICULTY =====
+function configForLevel(n){
+  return {
+    goal:        4 + n * 2,                          // shells needed
+    time:        Math.max(18, 42 - n * 3),           // seconds
+    lifespan:    Math.max(900, 2600 - n * 140),      // ms a shell stays
+    spawnEvery:  Math.max(380, 950 - n * 55),        // ms between spawns
+    pearlChance: Math.min(0.22, 0.06 + n * 0.015),   // chance a shell is a pearl
+    crabChance:  Math.min(0.30, 0.05 + n * 0.025),   // chance a spawn is a crab
+  };
+}
+
+// ===== SPAWNING =====
+function fieldBounds(){
+  const r = field.getBoundingClientRect();
+  return r;
+}
+function spawnThing(cfg){
+  if(!running) return;
+  const r = fieldBounds();
+  const pad = 36;
+  const x = pad + Math.random() * (r.width  - pad*2);
+  const y = pad + Math.random() * (r.height - pad*2);
+
+  const roll = Math.random();
+  const el = document.createElement('div');
+  el.style.left = x + 'px';
+  el.style.top  = y + 'px';
+
+  if(roll < cfg.crabChance){
+    el.className = 'shell';
+    el.textContent = '🦀';
+    el.dataset.type = 'crab';
+  } else if(roll < cfg.crabChance + cfg.pearlChance){
+    el.className = 'shell bonus';
+    el.textContent = '🦪';
+    el.dataset.type = 'pearl';
+  } else {
+    el.className = 'shell';
+    el.textContent = SHELLS[Math.floor(Math.random()*SHELLS.length)];
+    el.dataset.type = 'shell';
+  }
+
+  el.addEventListener('pointerdown', (e)=>{ e.preventDefault(); collect(el, x, y); }, { passive:false });
+  field.appendChild(el);
+
+  // auto-remove after lifespan
+  const life = cfg.lifespan * (el.dataset.type==='pearl' ? 0.8 : 1);
+  el._timeout = setTimeout(()=>{
+    if(el.parentNode){ el.classList.add('leaving'); setTimeout(()=>el.remove(),250); }
+  }, life);
+}
+
+function collect(el, x, y){
+  if(!running || el._used) return;
+  el._used = true;
+  clearTimeout(el._timeout);
+  const type = el.dataset.type;
+
+  if(type==='crab'){
+    sfx('crab'); buzz([60,40,60]);
+    collected = Math.max(0, collected - 1);
+    timeLeft = Math.max(0, timeLeft - 2);
+    floatText(x, y, '-1 🦀', '#ff7777');
+    flashScene('#ff333322');
+  } else {
+    const gain = (type==='pearl') ? 3 : 1;
+    collected += gain;
+    if(type==='pearl'){ sfx('pearl'); buzz(30); floatText(x, y, '+3 ⭐', '#ffe680'); sparkle(x,y,'✨'); }
+    else { sfx('pick'); buzz(15); floatText(x, y, '+1', '#fff'); sparkle(x,y,'✨'); }
+  }
+
+  el.classList.add('leaving');
+  setTimeout(()=>el.remove(), 250);
+  updateHUD();
+
+  if(collected >= goal){ winLevel(); }
+}
+
+function sparkle(x,y,ch){
+  const s = document.createElement('div');
+  s.className='sparkle'; s.textContent=ch;
+  s.style.left = x+'px'; s.style.top = y+'px';
+  field.appendChild(s);
+  setTimeout(()=>s.remove(), 600);
+}
+function floatText(x,y,txt,color){
+  const f = document.createElement('div');
+  f.className='float-pts'; f.textContent=txt; f.style.color=color;
+  f.style.left = x+'px'; f.style.top = y+'px';
+  field.appendChild(f);
+  setTimeout(()=>f.remove(), 700);
+}
+function flashScene(color){
+  const fl = document.createElement('div');
+  fl.style.cssText = `position:fixed;inset:0;background:${color};z-index:9;pointer-events:none;transition:opacity .3s;`;
+  document.body.appendChild(fl);
+  requestAnimationFrame(()=>{ fl.style.opacity='0'; });
+  setTimeout(()=>fl.remove(), 320);
+}
+
+// ===== HUD =====
+function updateHUD(){
+  document.getElementById('level-val').textContent = level;
+  document.getElementById('collected-val').textContent = Math.min(collected, goal);
+  document.getElementById('goal-val').textContent = goal;
+  document.getElementById('time-val').textContent = timeLeft;
+  document.getElementById('progress').style.width = Math.min(100,(collected/goal)*100) + '%';
+  document.getElementById('time-box').classList.toggle('low', timeLeft <= 5);
+}
+
+// ===== LEVEL FLOW =====
+function startLevel(n){
+  level = n;
+  const cfg = configForLevel(n);
+  goal = cfg.goal;
+  timeLeft = cfg.time;
+  collected = 0;
+  running = true;
+  clearField();
+  updateHUD();
+  hideAllOverlays();
+
+  // countdown timer
+  clearInterval(timerId);
+  timerId = setInterval(()=>{
+    if(!running) return;
+    timeLeft--;
+    updateHUD();
+    if(timeLeft <= 0){ loseGame(); }
+  }, 1000);
+
+  // spawner
+  clearInterval(spawnId);
+  const spawn = ()=>{
+    if(!running) return;
+    spawnThing(cfg);
+    // sometimes spawn two at once on higher levels
+    if(n >= 4 && Math.random() < 0.4) spawnThing(cfg);
+  };
+  spawn();
+  spawnId = setInterval(spawn, cfg.spawnEvery);
+}
+
+function clearField(){ field.innerHTML = ''; }
+
+function stopLevel(){
+  running = false;
+  clearInterval(timerId);
+  clearInterval(spawnId);
+  // let existing shells fade
+  field.querySelectorAll('.shell').forEach(s=>{ clearTimeout(s._timeout); });
+}
+
+function winLevel(){
+  stopLevel();
+  sfx('win'); buzz([40,30,80]);
+  bestLevel = Math.max(bestLevel, level + 1);
+  document.getElementById('best-val').textContent = bestLevel;
+  document.getElementById('win-title').textContent = `Island ${level} Cleared! 🏝️`;
+  const nextCfg = configForLevel(level+1);
+  document.getElementById('win-text').textContent =
+    `Great job! Next island needs ${nextCfg.goal} shells in ${nextCfg.time} seconds. Ready?`;
+  showOverlay('win-screen');
+}
+
+function loseGame(){
+  stopLevel();
+  sfx('lose'); buzz([100,50,100]);
+  document.getElementById('lose-text').textContent =
+    `You reached Island ${level}. The tide came in! 🌊 Try again?`;
+  showOverlay('lose-screen');
+}
+
+// ===== OVERLAYS =====
+function hideAllOverlays(){ document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('show')); }
+function showOverlay(id){ hideAllOverlays(); document.getElementById(id).classList.add('show'); }
+
+// ===== BUTTONS =====
+document.getElementById('start-btn').addEventListener('click', ()=>{ audio(); startLevel(1); });
+document.getElementById('how-btn').addEventListener('click', ()=> showOverlay('how-screen'));
+document.getElementById('how-back-btn').addEventListener('click', ()=> showOverlay('start-screen'));
+document.getElementById('next-btn').addEventListener('click', ()=> startLevel(level + 1));
+document.getElementById('retry-btn').addEventListener('click', ()=> startLevel(1));
+document.getElementById('menu-btn').addEventListener('click', ()=>{ level=1; showOverlay('start-screen'); });
+
+updateHUD();
+</script>
+</body>
+</html>
